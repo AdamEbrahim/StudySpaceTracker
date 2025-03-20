@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Study Space Tracker</title>
+    <script>
+        function refreshData() {
+            location.reload();
+        }
+        setInterval(refreshData, 5000); // Refresh every 5 seconds
+    </script>
+</head>
+<body>
+    <h1>Available Study Spaces</h1>
+    <ul>
+        {% for location, spaces in spaces.items() %}
+            <li>{{ location }}: {{ spaces }} available spaces</li>
+        {% endfor %}
+    </ul>
+</body>
+</html>
