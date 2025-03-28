@@ -194,5 +194,6 @@ def main(node_addresses):
             send_data_to_server(curr_total)
 
 if __name__ == "__main__":
-    node_addresses = ["58:56:00:00:8E:88"]
+    node_addresses = ["58:56:00:00:8E:88", "58:56:00:00:8E:2A"]
+    #node_addresses = ["58:56:00:00:8E:2A"]
     main(node_addresses)
