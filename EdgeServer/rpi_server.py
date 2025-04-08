@@ -81,12 +81,12 @@
 import bluetooth
 import json
 import requests
-from time import sleep
+from time import sleep, time
 from collections import deque
 
 # Configuration
-NUM_SENSORS = 2
-WINDOW_SIZE = 5
+NUM_SENSORS = {}
+WINDOW_SIZE = 10
 FLASK_SERVER_URL = "http://10.197.191.141:80/update"
 
 sensor_data = {}
@@ -104,17 +104,41 @@ def connect_bluetooth(address):
 
 def initialize_nodes(node_addresses):
     for addr in node_addresses:
-        sensor_data[addr] = [deque([0] * WINDOW_SIZE, maxlen=WINDOW_SIZE) for _ in range(NUM_SENSORS)]
+        sensor_data[addr] = [{"window": deque([0] * WINDOW_SIZE, maxlen=WINDOW_SIZE), "score": 0.0} for _ in range(NUM_SENSORS[addr])]
         buffer[addr] = ""  # Initialize buffer for each node
     print("Initialization complete.")
 
-def predict_occupancy(node_addr):
+def predict_occupancy(node_addr, decay_rate=0.85, motion_boost=0.25, threshold=0.6):
     predictions = []
-    for i in range(NUM_SENSORS):
-        window = sensor_data[node_addr][i]
-        #predictions.append(1 if sum(window) > (WINDOW_SIZE // 2) else 0)
-        predictions.append(1 if window[len(window)-1] == 1 else 0)
+    for i in range(NUM_SENSORS[node_addr]):
+        sensor = sensor_data[node_addr][i]
+        window = sensor["window"]
+        score = sensor["score"]
+
+        # Get latest motion reading (most recent value in the window)
+        latest_motion = window[-1]
+
+        # Update score based on exponential decay + boost
+        score *= decay_rate
+        if latest_motion == 1:
+            score += motion_boost
+        score = min(score, 1.0)  # Cap to 1.0
+
+        # Store updated score
+        sensor["score"] = score
+
+        # Predict occupancy based on threshold
+        predictions.append(1 if score > threshold else 0)
+
     return predictions
+
+#def predict_occupancy(node_addr):
+#    predictions = []
+#    for i in range(NUM_SENSORS[node_addr]):
+#        window = sensor_data[node_addr][i]
+#        #predictions.append(1 if sum(window) > (WINDOW_SIZE // 2) else 0)
+#        predictions.append(1 if window[len(window)-1] == 1 else 0)
+#    return predictions
 
 def send_data_to_server(total_available_seats):
     try:
@@ -178,7 +202,7 @@ def main(node_addresses):
 
                 # Update sliding window
                 for i, value in enumerate(payload['occupancy']):
-                    sensor_data[addr][i].append(value)
+                    sensor_data[addr][i]["window"].append(value)
 
                 # Predict occupancy
                 predicted_occupancy = predict_occupancy(addr)
@@ -194,6 +218,11 @@ def main(node_addresses):
             send_data_to_server(curr_total)
 
 if __name__ == "__main__":
-    node_addresses = ["58:56:00:00:8E:88", "58:56:00:00:8E:2A"]
+    #node_addresses = ["58:56:00:00:8E:88", "58:56:00:00:8E:2A"]
+    node_addresses = ["58:56:00:00:8E:88"]
     #node_addresses = ["58:56:00:00:8E:2A"]
+    sensor_counts = [2]
+    for i in range(len(node_addresses)):
+        NUM_SENSORS[node_addresses[i]] = sensor_counts[i]
+
     main(node_addresses)
